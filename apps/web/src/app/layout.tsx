@@ -22,9 +22,42 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Trace8 — Playwright Testing Studio",
+  title: {
+    default: "Trace8 — Playwright Testing Studio",
+    template: "%s · Trace8",
+  },
   description:
-    "Run tests. See everything. Fix faster. The modern observability platform for Playwright test suites.",
+    "Run Playwright tests as usual. Stop digging through terminal output. Every run syncs into a clean dashboard where failures, traces, screenshots, and flaky tests are easy to understand.",
+  keywords: [
+    "playwright",
+    "testing",
+    "e2e",
+    "test results",
+    "flaky tests",
+    "ci",
+    "dashboard",
+  ],
+  authors: [{ name: "Codezela Technologies" }],
+  metadataBase: new URL(
+    process.env.APP_URL || "http://localhost:3000"
+  ),
+  openGraph: {
+    title: "Trace8 — Playwright Testing Studio",
+    description:
+      "Run Playwright tests as usual. Stop digging through terminal output. Every run syncs into a clean dashboard where failures, traces, screenshots, and flaky tests are easy to understand.",
+    type: "website",
+    siteName: "Trace8",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Trace8 — Playwright Testing Studio",
+    description:
+      "Run Playwright tests as usual. Stop digging through terminal output. Every run syncs into a clean dashboard where failures, traces, screenshots, and flaky tests are easy to understand.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
