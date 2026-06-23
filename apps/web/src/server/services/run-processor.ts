@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { recalculateProjectFlakiness } from "@/server/services/flakiness";
 
 export async function processRunResults(runId: string) {
   const testResults = await db.testResult.findMany({
@@ -22,6 +23,11 @@ export async function processRunResults(runId: string) {
       timedOut,
       retryCount,
     },
+  });
+
+  // Recalculate flakiness scores for all tests in this project
+  await recalculateProjectFlakiness(run.projectId).catch((err) => {
+    console.error("Flakiness recalculation failed:", err);
   });
 
   return run;
