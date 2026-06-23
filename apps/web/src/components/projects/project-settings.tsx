@@ -41,9 +41,13 @@ interface ProjectSettingsProps {
     tokens: Token[];
     _count: { runs: number; tests: number };
   };
+  usage: {
+    runsThisMonth: number;
+    storageUsed: string;
+  };
 }
 
-export function ProjectSettings({ project }: ProjectSettingsProps) {
+export function ProjectSettings({ project, usage }: ProjectSettingsProps) {
   const router = useRouter();
   const [tokenDialogOpen, setTokenDialogOpen] = React.useState(false);
   const [tokenName, setTokenName] = React.useState("");
@@ -322,18 +326,22 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
             <CardDescription>Current month usage statistics.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="rounded-lg border border-border p-4">
-                <p className="text-sm text-muted-foreground">Total Runs</p>
+                <p className="text-sm text-muted-foreground">Runs This Month</p>
                 <p className="text-2xl font-bold font-display">
-                  {project._count.runs}
+                  {usage.runsThisMonth}
                 </p>
               </div>
               <div className="rounded-lg border border-border p-4">
-                <p className="text-sm text-muted-foreground">Tests</p>
+                <p className="text-sm text-muted-foreground">Storage Used</p>
                 <p className="text-2xl font-bold font-display">
-                  {project._count.tests}
+                  {formatBytes(BigInt(usage.storageUsed))}
                 </p>
+              </div>
+              <div className="rounded-lg border border-border p-4">
+                <p className="text-sm text-muted-foreground">Retention Period</p>
+                <p className="text-2xl font-bold font-display">14 days</p>
               </div>
             </div>
           </CardContent>

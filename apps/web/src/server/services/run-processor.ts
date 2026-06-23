@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { recalculateProjectFlakiness } from "@/server/services/flakiness";
+import { evaluateAlerts } from "@/server/services/alerts";
 
 export async function processRunResults(runId: string) {
   const testResults = await db.testResult.findMany({
@@ -28,6 +29,11 @@ export async function processRunResults(runId: string) {
   // Recalculate flakiness scores for all tests in this project
   await recalculateProjectFlakiness(run.projectId).catch((err) => {
     console.error("Flakiness recalculation failed:", err);
+  });
+
+  // Evaluate alert rules
+  await evaluateAlerts(runId).catch((err) => {
+    console.error("Alert evaluation failed:", err);
   });
 
   return run;

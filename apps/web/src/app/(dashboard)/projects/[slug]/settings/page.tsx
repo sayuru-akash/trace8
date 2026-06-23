@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ProjectSettings } from "@/components/projects/project-settings";
+import { getProjectUsage } from "@/server/services/usage";
 
 export default async function ProjectSettingsPage({
   params,
@@ -36,5 +37,12 @@ export default async function ProjectSettingsPage({
 
   if (!project) notFound();
 
-  return <ProjectSettings project={project} />;
+  const usage = await getProjectUsage(project.id);
+
+  return (
+    <ProjectSettings
+      project={project}
+      usage={usage ?? { runsThisMonth: 0, storageUsed: "0" }}
+    />
+  );
 }

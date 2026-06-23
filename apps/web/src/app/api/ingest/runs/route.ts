@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { authenticateIngestionToken } from "@/lib/ingest-auth";
 import { getStorage } from "@/lib/storage";
 import { generateStableKey } from "@/lib/utils";
+import { rateLimit } from "@/lib/rate-limit";
 import { createRunPayloadSchema, SCHEMA_VERSION, LIMITS } from "@trace8/shared";
 import { createHash } from "crypto";
 
@@ -11,6 +12,10 @@ export async function POST(request: Request) {
     const auth = await authenticateIngestionToken(request);
     if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!rateLimit(`runs:${auth.projectId}`, 10, 60_000)) {
+      return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
     }
 
     const body = await request.json();

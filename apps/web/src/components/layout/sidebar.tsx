@@ -16,6 +16,7 @@ import {
   ChevronsRight,
   LogOut,
   Building2,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
@@ -42,6 +43,7 @@ interface SidebarProps {
   user: {
     name?: string | null;
     email?: string | null;
+    role?: string;
   };
   org: {
     name: string;
@@ -58,6 +60,8 @@ const navItems = [
   { href: "/alerts", icon: Bell, label: "Alerts" },
   { href: "/settings", icon: Settings, label: "Settings" },
 ];
+
+const adminNavItem = { href: "/admin", icon: Shield, label: "Admin" };
 
 export function Sidebar({ user, org }: SidebarProps) {
   const pathname = usePathname();
@@ -148,6 +152,60 @@ export function Sidebar({ user, org }: SidebarProps) {
 
             return item;
           })}
+
+          {user.role === "ADMIN" && (
+            <>
+              <Separator className="my-2" />
+              {(() => {
+                const { href, icon: Icon, label } = adminNavItem;
+                const isActive = pathname === href || pathname.startsWith(href + "/");
+                const item = (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={cn(
+                      "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
+                    )}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="sidebar-active"
+                        className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full bg-primary"
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                      />
+                    )}
+                    <Icon className="h-5 w-5 shrink-0" />
+                    <AnimatePresence>
+                      {!collapsed && (
+                        <motion.span
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="truncate"
+                        >
+                          {label}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </Link>
+                );
+
+                if (collapsed) {
+                  return (
+                    <Tooltip key={href}>
+                      <TooltipTrigger asChild>{item}</TooltipTrigger>
+                      <TooltipContent side="right">{label}</TooltipContent>
+                    </Tooltip>
+                  );
+                }
+
+                return item;
+              })()}
+            </>
+          )}
         </nav>
 
         <Separator />
