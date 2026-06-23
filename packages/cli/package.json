@@ -1,0 +1,38 @@
+{
+  "name": "playwright-studio",
+  "version": "0.1.0",
+  "description": "CLI for Trace8 — Playwright Testing Studio. Run Playwright tests, sync results to your dashboard.",
+  "type": "module",
+  "bin": {
+    "playwright-studio": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@trace8/shared": "workspace:*",
+    "commander": "^12.1.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0",
+    "@types/bun": "^1.2.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "playwright",
+    "testing",
+    "test",
+    "e2e",
+    "cli",
+    "trace8",
+    "studio"
+  ],
+  "license": "UNLICENSED"
+}

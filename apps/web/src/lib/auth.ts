@@ -10,6 +10,7 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
+// @ts-ignore — NextAuth v5 signIn type references non-portable @auth/core internals (TS2742)
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },

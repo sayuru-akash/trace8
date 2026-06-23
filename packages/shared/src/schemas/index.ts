@@ -1,7 +1,7 @@
 // Zod schemas for ingestion data contracts (SPEC section 6)
 
 import { z } from "zod";
-import { SCHEMA_VERSION, LIMITS } from "../enums/index.js";
+import { SCHEMA_VERSION, LIMITS } from "../enums";
 
 // ============================================================
 // Ingestion payload schemas

@@ -13,6 +13,8 @@
       "@/generated/*": ["./src/generated/*"]
     },
     "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
     "incremental": true
   },
   "include": [

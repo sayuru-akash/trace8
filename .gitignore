@@ -52,3 +52,7 @@ yarn-error.log*
 .cache/
 .turbo/
 coverage/
+
+# Build info
+*.tsbuildinfo
+next-env.d.ts
