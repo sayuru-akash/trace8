@@ -1,0 +1,23 @@
+{
+  "name": "trace8",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter @trace8/web dev",
+    "build": "bun run --filter @trace8/web build",
+    "lint": "bun run --filter @trace8/web lint",
+    "type-check": "bun run --filter @trace8/web type-check",
+    "db:push": "bun run --filter @trace8/web db:push",
+    "db:seed": "bun run --filter @trace8/web db:seed",
+    "db:studio": "bun run --filter @trace8/web db:studio",
+    "cli:dev": "bun run --filter @trace8/cli dev",
+    "cli:build": "bun run --filter @trace8/cli build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.0"
+  }
+}
