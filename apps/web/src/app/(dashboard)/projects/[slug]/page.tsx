@@ -52,6 +52,48 @@ export default async function ProjectPage({
 
   const hasRuns = project._count.runs > 0;
 
+  const latestRuns = await db.run.findMany({
+    where: { projectId: project.id },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: { id: true, status: true, passed: true, failed: true, total: true, createdAt: true, durationMs: true, branch: true, environmentId: true, environment: { select: { name: true } } },
+  });
+
+  const recentFailures = await db.testResult.findMany({
+    where: {
+      run: { projectId: project.id },
+      status: "failed",
+    },
+    include: {
+      test: { select: { id: true, titlePath: true, filePath: true } },
+      run: { select: { id: true, createdAt: true, branch: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+
+  const flakyCount = await db.flakyTestStat.count({
+    where: {
+      projectId: project.id,
+      classification: { in: ["flaky", "watch", "regression"] },
+    },
+  });
+
+  const totalTests = await db.test.count({ where: { projectId: project.id } });
+
+  const projectTests = await db.test.findMany({
+    where: { projectId: project.id },
+    include: {
+      results: {
+        include: { run: { select: { id: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 20,
+  });
+
   return (
     <PageTransition>
       <div className="space-y-6">
@@ -98,7 +140,7 @@ export default async function ProjectPage({
               />
               <StatCard
                 label="Tests"
-                value={project._count.tests}
+                value={totalTests}
                 icon={<CheckCircle2 className="h-5 w-5" />}
               />
               <StatCard
@@ -110,7 +152,11 @@ export default async function ProjectPage({
                 }
                 suffix="%"
               />
-              <StatCard label="Flake Rate" value={0} suffix="%" />
+              <StatCard
+                label="Flaky Tests"
+                value={flakyCount}
+                icon={<AlertTriangle className="h-5 w-5" />}
+              />
             </div>
 
             {/* Empty state or latest run info */}
@@ -125,52 +171,137 @@ export default async function ProjectPage({
                   <div className="mx-auto mt-6 max-w-md space-y-3">
                     <div className="rounded-lg bg-surface-2 p-4">
                       <p className="text-xs font-medium text-muted-foreground mb-2">
-                        Install CLI
+                        1. Create a project token
                       </p>
-                      <code className="text-sm font-mono text-foreground">
-                        npm install -g @trace8/cli
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Go to Project Settings → Tokens to generate a token.
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-surface-2 p-4">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                        2. Initialize the CLI
+                      </p>
+                      <code className="text-sm font-mono text-primary">
+                        bunx playwright-studio init
                       </code>
                     </div>
                     <div className="rounded-lg bg-surface-2 p-4">
                       <p className="text-xs font-medium text-muted-foreground mb-2">
-                        Run tests
+                        3. Run your tests
                       </p>
-                      <code className="text-sm font-mono text-foreground">
-                        trace8 test --token pst_...
+                      <code className="text-sm font-mono text-primary">
+                        bunx playwright-studio test
                       </code>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Latest Run</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between rounded-lg border border-border p-4">
-                    <div className="flex items-center gap-3">
-                      <Badge
-                        variant={
-                          latestRun!.status === "passed"
-                            ? "success"
-                            : latestRun!.status === "failed"
-                              ? "danger"
-                              : "outline"
-                        }
-                      >
-                        {latestRun!.status}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {latestRun!.passed} passed, {latestRun!.failed} failed
+              <div className="space-y-6">
+                {/* Latest Run */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Latest Run</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                      <div className="flex items-center gap-3">
+                        <Badge
+                          variant={
+                            latestRun!.status === "passed"
+                              ? "success"
+                              : latestRun!.status === "failed"
+                                ? "danger"
+                                : "outline"
+                          }
+                        >
+                          {latestRun!.status}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {latestRun!.passed} passed, {latestRun!.failed} failed
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {latestRun!.createdAt.toLocaleDateString()}
                       </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {latestRun!.createdAt.toLocaleDateString()}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                {/* Recent Runs */}
+                {latestRuns.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recent Runs</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {latestRuns.slice(0, 5).map((run) => (
+                        <Link
+                          key={run.id}
+                          href={`/runs/${run.id}`}
+                          className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:bg-surface-2"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Badge
+                              variant={
+                                run.status === "passed" ? "success" :
+                                run.status === "failed" ? "danger" : "outline"
+                              }
+                            >
+                              {run.status}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground font-mono">
+                              {run.branch || "—"}
+                            </span>
+                            {run.environment && (
+                              <Badge variant="outline" className="text-xs">
+                                {run.environment.name}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>{run.passed}✓ {run.failed}✗</span>
+                            <span>{run.createdAt.toLocaleDateString()}</span>
+                          </div>
+                        </Link>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Recent Failures */}
+                {recentFailures.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recent Failures</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {recentFailures.map((failure) => (
+                        <Link
+                          key={failure.id}
+                          href={`/tests/${failure.test.id}?runId=${failure.runId}`}
+                          className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:bg-surface-2"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Badge variant="danger">failed</Badge>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                {failure.test.titlePath.join(" › ")}
+                              </p>
+                              <p className="text-xs text-muted-foreground font-mono">
+                                {failure.test.filePath}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {failure.run.createdAt.toLocaleDateString()}
+                          </span>
+                        </Link>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             )}
 
             {/* Setup status */}
@@ -201,28 +332,101 @@ export default async function ProjectPage({
             </Card>
           </TabsContent>
 
-          <TabsContent value="runs">
-            <Card>
-              <CardContent className="py-12">
-                <EmptyState
-                  icon={<PlayCircle className="h-12 w-12" />}
-                  title="No runs yet"
-                  description="Test runs will appear here once you start using the CLI."
-                />
-              </CardContent>
-            </Card>
+          <TabsContent value="runs" className="space-y-4">
+            {latestRuns.length > 0 ? (
+              latestRuns.map((run) => (
+                <Link
+                  key={run.id}
+                  href={`/runs/${run.id}`}
+                  className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-surface-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <Badge
+                      variant={
+                        run.status === "passed" ? "success" :
+                        run.status === "failed" ? "danger" : "outline"
+                      }
+                    >
+                      {run.status}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground font-mono">
+                      {run.branch || "—"}
+                    </span>
+                    {run.environment && (
+                      <Badge variant="outline" className="text-xs">
+                        {run.environment.name}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>{run.passed}✓ {run.failed}✗</span>
+                    <span>{run.createdAt.toLocaleDateString()}</span>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <Card>
+                <CardContent className="py-12">
+                  <EmptyState
+                    icon={<PlayCircle className="h-12 w-12" />}
+                    title="No runs yet"
+                    description="Test runs will appear here once you start using the CLI."
+                  />
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
-          <TabsContent value="tests">
-            <Card>
-              <CardContent className="py-12">
-                <EmptyState
-                  icon={<CheckCircle2 className="h-12 w-12" />}
-                  title="No tests yet"
-                  description="Test results will appear here after your first run."
-                />
-              </CardContent>
-            </Card>
+          <TabsContent value="tests" className="space-y-4">
+            {projectTests.length > 0 ? (
+              projectTests.map((test) => {
+                const lastResult = test.results[0];
+                return (
+                  <Link
+                    key={test.id}
+                    href={`/tests/${test.id}${lastResult ? `?runId=${lastResult.runId}` : ""}`}
+                    className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-surface-2"
+                  >
+                    <div className="flex items-center gap-3">
+                      {lastResult && (
+                        <Badge
+                          variant={
+                            lastResult.status === "passed" ? "success" :
+                            lastResult.status === "failed" ? "danger" :
+                            lastResult.status === "flaky" ? "warning" : "outline"
+                          }
+                        >
+                          {lastResult.status}
+                        </Badge>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {test.titlePath.join(" › ")}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {test.filePath}
+                        </p>
+                      </div>
+                    </div>
+                    {test.browserProjectName && (
+                      <Badge variant="outline" className="text-xs">
+                        {test.browserProjectName}
+                      </Badge>
+                    )}
+                  </Link>
+                );
+              })
+            ) : (
+              <Card>
+                <CardContent className="py-12">
+                  <EmptyState
+                    icon={<CheckCircle2 className="h-12 w-12" />}
+                    title="No tests yet"
+                    description="Test results will appear here after your first run."
+                  />
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="settings">
