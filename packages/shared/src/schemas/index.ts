@@ -66,7 +66,7 @@ export const testInputSchema = z.object({
   retryCount: z.number().int().min(0).default(0),
   error: z
     .object({
-      message: z.string().max(LIMITS.MAX_ERROR_TEXT_PER_TEST),
+      message: z.string().max(LIMITS.MAX_ERROR_TEXT_PER_TEST).optional(),
       stack: z.string().max(LIMITS.MAX_ERROR_TEXT_PER_TEST).optional(),
     })
     .optional(),
