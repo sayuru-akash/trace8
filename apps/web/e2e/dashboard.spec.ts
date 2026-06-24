@@ -10,25 +10,30 @@ test.describe("Dashboard", () => {
   });
 
   test("dashboard loads with stats", async ({ page }) => {
-    await expect(page.getByText(/dashboard/i)).toBeVisible();
+    // The welcome heading is unique on the dashboard
+    await expect(page.getByRole("heading", { name: /welcome/i })).toBeVisible();
   });
 
-  test("dashboard shows empty state when no projects", async ({ page }) => {
+  test("dashboard shows empty state or project content", async ({ page }) => {
+    // The dashboard always shows either an empty-state CTA or project cards.
+    // Either is valid — verify the page rendered meaningful content.
+    const welcome = page.getByRole("heading", { name: /welcome/i });
+    await expect(welcome).toBeVisible();
+    // Verify either empty-state guidance or project data is present
     const emptyState = page.getByText(/no projects|get started|create your first/i);
-    const projectCard = page.getByText(/e2e project/i);
-    const hasProject = await projectCard.isVisible().catch(() => false);
-    if (!hasProject) {
-      await expect(emptyState).toBeVisible();
-    }
+    const projectSection = page.getByText(/recent projects/i);
+    const hasEmpty = await emptyState.isVisible().catch(() => false);
+    const hasProjects = await projectSection.isVisible().catch(() => false);
+    expect(hasEmpty || hasProjects).toBeTruthy();
   });
 
   test("navigation to runs page", async ({ page }) => {
-    await page.getByRole("link", { name: /runs/i }).click();
+    await page.getByRole("link", { name: "Runs", exact: true }).click();
     await expect(page).toHaveURL(/\/runs/);
   });
 
   test("navigation to tests page", async ({ page }) => {
-    await page.getByRole("link", { name: /tests/i }).click();
+    await page.getByRole("link", { name: "Tests", exact: true }).click();
     await expect(page).toHaveURL(/\/tests/);
   });
 
@@ -38,12 +43,12 @@ test.describe("Dashboard", () => {
   });
 
   test("navigation to alerts page", async ({ page }) => {
-    await page.getByRole("link", { name: /alerts/i }).click();
+    await page.getByRole("link", { name: "Alerts", exact: true }).click();
     await expect(page).toHaveURL(/\/alerts/);
   });
 
   test("navigation to settings page", async ({ page }) => {
-    await page.getByRole("link", { name: /settings/i }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page).toHaveURL(/\/settings/);
   });
 });

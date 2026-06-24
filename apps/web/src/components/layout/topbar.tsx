@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { Search, Command } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { signOutAction } from "@/server/actions/auth";
 
 export function Topbar() {
   const pathname = usePathname();
@@ -89,13 +88,15 @@ export function Topbar() {
               <a href="/settings">Settings</a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <form action={signOutAction}>
-              <DropdownMenuItem asChild>
-                <button type="submit" className="w-full">
-                  Sign out
-                </button>
-              </DropdownMenuItem>
-            </form>
+            <DropdownMenuItem
+              className="cursor-pointer text-danger focus:text-danger"
+              onSelect={(e) => {
+                e.preventDefault();
+                void signOut({ callbackUrl: "/signin" });
+              }}
+            >
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

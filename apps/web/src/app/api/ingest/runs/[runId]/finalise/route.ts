@@ -53,7 +53,7 @@ export async function POST(
     });
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const runUrl = `${baseUrl}/projects/${run.projectId}/runs/${runId}`;
+    const runUrl = `${baseUrl}/runs/${runId}`;
 
     return NextResponse.json({ ok: true, runUrl });
   } catch (error) {
