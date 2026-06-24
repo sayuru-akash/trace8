@@ -5,14 +5,15 @@ export async function proxy(request: Request) {
   const session = await auth();
   const { pathname } = new URL(request.url);
 
-  const publicPaths = ["/signin", "/signup", "/api/", "/ingest/"];
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p));
+  const publicPaths = ["/", "/signin", "/signup", "/api/", "/ingest/"];
+  const isPublic = publicPaths.some((p) => (p === "/" ? pathname === "/" : pathname.startsWith(p)));
 
   if (pathname === "/") {
     if (session?.user) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
-    return NextResponse.redirect(new URL("/signin", request.url));
+    // Unauthenticated users see the landing page
+    return NextResponse.next();
   }
 
   if (!isPublic && !session?.user) {
