@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { authenticateIngestionToken } from "@/lib/ingest-auth";
 import { finaliseRunPayloadSchema } from "@trace8/shared";
+import { processRunResults } from "@/server/services/run-processor";
 
 export async function POST(
   request: Request,
@@ -50,6 +51,12 @@ export async function POST(
     await db.run.update({
       where: { id: runId },
       data: { status: run.status },
+    });
+
+    // Process the run: recalculate summary counts, flakiness scores, and
+    // evaluate alert rules. This is the core post-ingestion pipeline.
+    await processRunResults(runId).catch((err) => {
+      console.error("Run processing failed:", err);
     });
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
