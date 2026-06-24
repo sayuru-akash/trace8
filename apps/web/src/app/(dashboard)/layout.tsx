@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Sidebar } from "@/components/layout/sidebar";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { DashboardLayoutClient } from "./layout-client";
 
 export default async function DashboardLayout({
   children,
@@ -23,16 +24,15 @@ export default async function DashboardLayout({
   const org = orgMember?.org ?? null;
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar
-        user={{
-          name: session.user.name,
-          email: session.user.email,
-          role: session.user.role,
-        }}
-        org={org}
-      />
-      <DashboardShell>{children}</DashboardShell>
-    </div>
+    <DashboardLayoutClient
+      user={{
+        name: session.user.name,
+        email: session.user.email,
+        role: session.user.role,
+      }}
+      org={org}
+    >
+      {children}
+    </DashboardLayoutClient>
   );
 }

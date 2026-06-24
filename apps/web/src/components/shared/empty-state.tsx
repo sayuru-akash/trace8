@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -38,9 +39,15 @@ export function EmptyState({
         </p>
       )}
       {action && (
-        <Button className="mt-6" onClick={action.onClick}>
-          {action.label}
-        </Button>
+        action.href ? (
+          <Link href={action.href}>
+            <Button className="mt-6">{action.label}</Button>
+          </Link>
+        ) : (
+          <Button className="mt-6" onClick={action.onClick}>
+            {action.label}
+          </Button>
+        )
       )}
     </div>
   );

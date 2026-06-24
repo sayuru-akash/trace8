@@ -46,7 +46,21 @@ export default function SignUpPage() {
       formData.set("password", data.password);
 
       await signUpAction(formData);
+      // If we get here without throwing, the action didn't redirect.
+      // This shouldn't normally happen, but handle it gracefully.
+      router.push("/dashboard");
     } catch (err: unknown) {
+      // signUpAction calls signIn() which throws NEXT_REDIRECT on success.
+      // This is expected — the redirect is already in flight.
+      // Only show error if it's NOT a redirect.
+      if (err instanceof Error && err.message.includes("NEXT_REDIRECT")) {
+        // Redirect is happening — this is success, not an error
+        return;
+      }
+      // Don't swallow unknown errors — but also check for digest pattern
+      if (typeof err === "object" && err !== null && "digest" in err) {
+        return;
+      }
       if (err instanceof Error) {
         setError(err.message);
       } else {

@@ -151,6 +151,7 @@ export default async function DashboardPage() {
                 description="Projects organize your test runs, environments, and tokens."
                 action={{
                   label: "Create Project",
+                  href: "/projects",
                 }}
               />
             </CardContent>
