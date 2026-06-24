@@ -118,6 +118,23 @@ export async function archiveProject(id: string) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
 
+  // Verify the user has access to this project's org
+  const project = await db.project.findUnique({
+    where: { id },
+    select: { orgId: true },
+  });
+  if (!project) throw new Error("Project not found");
+
+  const membership = await db.orgMember.findUnique({
+    where: {
+      orgId_userId: {
+        orgId: project.orgId,
+        userId: session.user.id,
+      },
+    },
+  });
+  if (!membership) throw new Error("Forbidden");
+
   await db.project.update({
     where: { id },
     data: { archivedAt: new Date() },

@@ -109,7 +109,15 @@ export async function POST(request: Request) {
         orgId: orgMember.orgId,
         name: name.trim(),
         slug,
+        environments: {
+          create: [
+            { name: "local", slug: "local" },
+            { name: "staging", slug: "staging" },
+            { name: "production", slug: "production" },
+          ],
+        },
       },
+      include: { environments: true },
     });
 
     return NextResponse.json(project, { status: 201 });

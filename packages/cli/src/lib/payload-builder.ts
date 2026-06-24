@@ -9,6 +9,10 @@ import { maskSecrets } from "./masking";
 interface PlaywrightReport {
   config?: Record<string, unknown>;
   suites?: PlaywrightSuite[];
+  stats?: {
+    startTime?: string;
+    duration?: number;
+  };
 }
 
 interface PlaywrightSuite {
@@ -16,6 +20,7 @@ interface PlaywrightSuite {
   file?: string;
   specs?: PlaywrightSpecification[];
   suites?: PlaywrightSuite[];
+  parent?: PlaywrightSuite;
 }
 
 interface PlaywrightSpecification {
@@ -53,15 +58,26 @@ export async function buildPayload(
   let finishedAt: string | undefined;
   let totalDurationMs = 0;
 
-  const allResults: { status: string; duration: number; retry: number }[] = [];
+  const allResults: { testKey: string; status: string; duration: number; retry: number }[] = [];
 
-  function processSuite(suite: PlaywrightSuite, filePath?: string) {
+  function buildTitlePath(suite: PlaywrightSuite): string[] {
+    const path: string[] = [];
+    let current: PlaywrightSuite | undefined = suite;
+    while (current) {
+      if (current.title) path.unshift(current.title);
+      current = current.parent;
+    }
+    return path;
+  }
+
+  function processSuite(suite: PlaywrightSuite, filePath?: string, parent?: PlaywrightSuite) {
+    suite.parent = parent;
     const suiteFile = suite.file || filePath;
 
     for (const spec of suite.specs || []) {
       for (const test of spec.tests || []) {
         for (const result of test.results || []) {
-          const titlePath = [suite.title, spec.title].filter(Boolean) as string[];
+          const titlePath = [...buildTitlePath(suite), spec.title].filter(Boolean) as string[];
           const stableKey = [
             suiteFile || "",
             ...titlePath,
@@ -100,6 +116,7 @@ export async function buildPayload(
           });
 
           allResults.push({
+            testKey: stableKey,
             status: testStatus,
             duration: result.duration || 0,
             retry: result.retry || 0,
@@ -134,7 +151,7 @@ export async function buildPayload(
     }
 
     for (const child of suite.suites || []) {
-      processSuite(child, suiteFile);
+      processSuite(child, suiteFile, suite);
     }
   }
 
@@ -155,19 +172,66 @@ export async function buildPayload(
         if (artifact) artifact.sizeBytes = s.size;
       }
     } catch {
-      // File may have been cleaned up
+      const test = tests.find((t) =>
+        t.artifacts.some((a) => a.artifactKey === ap.artifactKey)
+      );
+      if (test) {
+        const artifact = test.artifacts.find(
+          (a) => a.artifactKey === ap.artifactKey
+        );
+        if (artifact) artifact.sizeBytes = 1;
+      }
     }
+  }
+
+  // Issue 9: Use report.stats.startTime if available
+  if (report.stats?.startTime) {
+    startedAt = new Date(report.stats.startTime).toISOString();
+  }
+
+  // Issue 8: Compute finishedAt from startTime + duration
+  if (report.stats?.startTime && report.stats?.duration) {
+    finishedAt = new Date(
+      new Date(report.stats.startTime).getTime() + report.stats.duration
+    ).toISOString();
   }
 
   const gitInfo = getGitInfo();
   const sourceInfo = getSourceInfo();
 
-  const total = allResults.length;
-  const passed = allResults.filter((r) => r.status === "passed").length;
-  const failed = allResults.filter((r) => r.status === "failed").length;
-  const skipped = allResults.filter((r) => r.status === "skipped").length;
-  const timedOut = allResults.filter((r) => r.status === "timed_out").length;
+  // Issue 10: Use last result per testKey for summary counts (deduplicated)
+  const lastResultPerTest = new Map<string, { status: string; retry: number }>();
+  for (const r of allResults) {
+    lastResultPerTest.set(r.testKey, { status: r.status, retry: r.retry });
+  }
+  const dedupedResults = [...lastResultPerTest.values()];
+
+  const total = dedupedResults.length;
+  const passed = dedupedResults.filter((r) => r.status === "passed").length;
+  const failed = dedupedResults.filter((r) => r.status === "failed").length;
+  const skipped = dedupedResults.filter((r) => r.status === "skipped").length;
+  const timedOut = dedupedResults.filter((r) => r.status === "timed_out").length;
   const retries = allResults.reduce((sum, r) => sum + r.retry, 0);
+
+  // Issue 16: Detect flaky tests
+  const testResultsByKey = new Map<string, { status: string; retry: number }[]>();
+  for (const r of allResults) {
+    const arr = testResultsByKey.get(r.testKey) || [];
+    arr.push(r);
+    testResultsByKey.set(r.testKey, arr);
+  }
+  for (const t of tests) {
+    const results = testResultsByKey.get(t.testKey);
+    if (results && results.length > 1) {
+      const hasFailed = results.some((r) => r.status === "failed");
+      const hasPassedLater = results.some((r, i) =>
+        r.status === "passed" && results.slice(0, i).some((prev) => prev.status === "failed")
+      );
+      if (hasFailed && hasPassedLater) {
+        t.status = "flaky" as any;
+      }
+    }
+  }
 
   const runStatus = failed > 0 ? "failed" : timedOut > 0 ? "timed_out" : "passed";
 
@@ -263,7 +327,7 @@ function getGitInfo() {
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
 
-    return { branch, commitSha, commitMessage, remoteUrl };
+    return { branch, commitSha, commitMessage: maskSecrets(commitMessage), remoteUrl };
   } catch {
     return undefined;
   }

@@ -55,6 +55,9 @@ export function registerUploadCommand(program: Command) {
 
       const { runId, runUrl, artifactUploads } = runResult;
 
+      // Map from artifactKey → upload success
+      const uploadResults = new Map<string, boolean>();
+
       if (artifactUploads.length > 0) {
         console.log(`Uploading ${artifactUploads.length} artifact(s)...`);
 
@@ -89,7 +92,7 @@ export function registerUploadCommand(program: Command) {
 
         for (const upload of artifactUploads) {
           const attachment = allAttachments.find(
-            (a) => a.key === upload.artifactKey.split("-").slice(-1)[0]
+            (a) => a.key === upload.artifactKey
           );
           if (attachment) {
             try {
@@ -99,12 +102,16 @@ export function registerUploadCommand(program: Command) {
                 attachment.mimeType,
                 config.apiUrl
               );
+              uploadResults.set(upload.artifactKey, true);
             } catch (error) {
+              uploadResults.set(upload.artifactKey, false);
               console.error(
                 `  Failed to upload ${upload.artifactKey}:`,
                 error instanceof Error ? error.message : String(error)
               );
             }
+          } else {
+            uploadResults.set(upload.artifactKey, false);
           }
         }
       }
@@ -114,7 +121,7 @@ export function registerUploadCommand(program: Command) {
           uploadedArtifacts: artifactUploads.map((a) => ({
             artifactKey: a.artifactKey,
             storageKey: a.storageKey,
-            uploaded: true,
+            uploaded: uploadResults.get(a.artifactKey) ?? false,
           })),
         });
         console.log(`\n✓ Results synced: ${runUrl}`);

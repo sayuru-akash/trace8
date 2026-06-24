@@ -6,8 +6,12 @@ const PATTERNS: [RegExp, string][] = [
   [/(gho_[A-Za-z0-9]{36})/g, "***REDACTED_GITHUB_TOKEN***"],
   [/(ghs_[A-Za-z0-9]{36})/g, "***REDACTED_GITHUB_TOKEN***"],
   [/(ghr_[A-Za-z0-9]{36})/g, "***REDACTED_GITHUB_TOKEN***"],
+  [/(ghu_[A-Za-z0-9]{36})/g, "***REDACTED_GITHUB_TOKEN***"],
+  [/(github_pat_[A-Za-z0-9_]{82})/g, "***REDACTED_GITHUB_TOKEN***"],
+  [/(eyJ[A-Za-z0-9_-]{10,})/g, "***REDACTED_JWT***"],
   [/(https?:\/\/[^:]+:)([^@\s]{4,})(@)/g, "$1***REDACTED***$3"],
   [/^([A-Z][A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|AUTH)[A-Z0-9_]*)=(.{4,})$/gm, "$1=***REDACTED***"],
+  [/^([a-z][a-z0-9_]*(?:key|secret|token|password|credential|auth)[a-z0-9_]*)=(.{4,})$/gm, "$1=***REDACTED***"],
 ];
 
 export function maskSecrets(text: string): string {

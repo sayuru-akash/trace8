@@ -10,8 +10,10 @@ export function registerTestCommand(program: Command) {
     .command("test")
     .description("Run Playwright tests and sync results to Trace8")
     .allowUnknownOption()
+    .option("--require-upload", "Exit non-zero if artifact upload fails (CI mode)")
+    .option("--env <environment>", "Environment for the run (local, staging, production)")
     .argument("[args...]", "Arguments passed to Playwright")
-    .action(async (args: string[]) => {
+    .action(async (args: string[], opts: { requireUpload?: boolean; env?: string }) => {
       let config;
       try {
         config = await loadConfig();
@@ -23,9 +25,18 @@ export function registerTestCommand(program: Command) {
         process.exit(1);
       }
 
+      const environment = opts.env || config.defaultEnvironment;
+
+      // Filter out --env and --require-upload from args passed to Playwright
+      const pwArgs = args.filter((a) => {
+        if (a.startsWith("--env")) return false;
+        if (a === "--require-upload") return false;
+        return true;
+      });
+
       console.log("Running Playwright tests...\n");
 
-      const { exitCode, resultsJson } = await runPlaywright(args);
+      const { exitCode, resultsJson } = await runPlaywright(pwArgs);
 
       if (!resultsJson) {
         console.error("\nError: No test results generated.");
@@ -38,7 +49,7 @@ export function registerTestCommand(program: Command) {
       try {
         const payload = await buildPayload(
           resultsJson,
-          config.defaultEnvironment
+          environment
         );
         runResult = await createRun(
           config.apiUrl,
@@ -54,6 +65,9 @@ export function registerTestCommand(program: Command) {
       }
 
       const { runId, runUrl, artifactUploads } = runResult;
+
+      // Map from artifactKey → upload success
+      const uploadResults = new Map<string, boolean>();
 
       if (artifactUploads.length > 0) {
         console.log(`Uploading ${artifactUploads.length} artifact(s)...`);
@@ -89,7 +103,7 @@ export function registerTestCommand(program: Command) {
 
         for (const upload of artifactUploads) {
           const attachment = allAttachments.find(
-            (a) => a.key === upload.artifactKey.split("-").slice(-1)[0]
+            (a) => a.key === upload.artifactKey
           );
           if (attachment) {
             try {
@@ -99,12 +113,16 @@ export function registerTestCommand(program: Command) {
                 attachment.mimeType,
                 config.apiUrl
               );
+              uploadResults.set(upload.artifactKey, true);
             } catch (error) {
+              uploadResults.set(upload.artifactKey, false);
               console.error(
                 `  Failed to upload ${upload.artifactKey}:`,
                 error instanceof Error ? error.message : String(error)
               );
             }
+          } else {
+            uploadResults.set(upload.artifactKey, false);
           }
         }
       }
@@ -114,7 +132,7 @@ export function registerTestCommand(program: Command) {
           uploadedArtifacts: artifactUploads.map((a) => ({
             artifactKey: a.artifactKey,
             storageKey: a.storageKey,
-            uploaded: true,
+            uploaded: uploadResults.get(a.artifactKey) ?? false,
           })),
         });
         console.log(`\n✓ Results synced: ${runUrl}`);
@@ -128,6 +146,15 @@ export function registerTestCommand(program: Command) {
           "\nError finalising run:",
           error instanceof Error ? error.message : String(error)
         );
+      }
+
+      // Issue 6: --require-upload — fail if any upload failed
+      if (opts.requireUpload) {
+        const anyFailed = [...uploadResults.values()].some((v) => !v);
+        if (anyFailed) {
+          console.error("\n✗ Upload failed (--require-upload).");
+          process.exit(1);
+        }
       }
 
       process.exit(exitCode);

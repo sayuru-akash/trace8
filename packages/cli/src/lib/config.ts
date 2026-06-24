@@ -6,6 +6,7 @@ import path from "path";
 
 const CONFIG_DIR = ".playwright-studio";
 const CONFIG_FILE = "config.json";
+const CONFIG_ENTRY = `${CONFIG_DIR}/${CONFIG_FILE}`;
 
 export type Config = z.infer<typeof cliConfigSchema>;
 
@@ -26,21 +27,25 @@ export async function loadConfig(): Promise<Config> {
 }
 
 export async function saveConfig(config: Config): Promise<void> {
+  const validated = cliConfigSchema.parse(config);
+
   const dir = path.join(process.cwd(), CONFIG_DIR);
   await mkdir(dir, { recursive: true });
   const configPath = path.join(dir, CONFIG_FILE);
-  await writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
+  await writeFile(configPath, JSON.stringify(validated, null, 2), "utf-8");
 
   const gitignorePath = path.join(process.cwd(), ".gitignore");
   if (existsSync(gitignorePath)) {
     const content = await readFile(gitignorePath, "utf-8");
-    if (!content.includes(CONFIG_DIR)) {
+    if (!content.includes(CONFIG_ENTRY)) {
       await writeFile(
         gitignorePath,
-        content.trimEnd() + "\n" + CONFIG_DIR + "/\n",
+        content.trimEnd() + "\n" + CONFIG_ENTRY + "\n",
         "utf-8"
       );
     }
+  } else {
+    await writeFile(gitignorePath, CONFIG_ENTRY + "\n", "utf-8");
   }
 }
 
@@ -52,7 +57,7 @@ function loadFromEnv(): Config | null {
   const token = process.env.PLAYWRIGHT_STUDIO_TOKEN;
   if (!token) return null;
 
-  return {
+  const config: Config = {
     apiUrl: process.env.PLAYWRIGHT_STUDIO_API_URL || "http://localhost:3000",
     projectToken: token,
     defaultEnvironment: (process.env.PLAYWRIGHT_STUDIO_ENV as Config["defaultEnvironment"]) || "local",
@@ -62,4 +67,6 @@ function loadFromEnv(): Config | null {
       videos: "off",
     },
   };
+
+  return cliConfigSchema.parse(config);
 }
