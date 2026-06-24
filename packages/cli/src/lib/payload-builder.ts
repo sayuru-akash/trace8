@@ -14,7 +14,7 @@ interface PlaywrightReport {
 interface PlaywrightSuite {
   title?: string;
   file?: string;
-  specifications?: PlaywrightSpecification[];
+  specs?: PlaywrightSpecification[];
   suites?: PlaywrightSuite[];
 }
 
@@ -34,9 +34,9 @@ interface PlaywrightTestResult {
   status?: string;
   duration?: number;
   retry?: number;
-  error?: { message?: string; stack?: string };
-  stdout?: string[];
-  stderr?: string[];
+  errors?: { message?: string; stack?: string }[];
+  stdout?: string[] | { type: string; text: string }[];
+  stderr?: string[] | { type: string; text: string }[];
   attachments?: { name: string; path?: string; contentType?: string }[];
 }
 
@@ -58,7 +58,7 @@ export async function buildPayload(
   function processSuite(suite: PlaywrightSuite, filePath?: string) {
     const suiteFile = suite.file || filePath;
 
-    for (const spec of suite.specifications || []) {
+    for (const spec of suite.specs || []) {
       for (const test of spec.tests || []) {
         for (const result of test.results || []) {
           const titlePath = [suite.title, spec.title].filter(Boolean) as string[];
@@ -69,14 +69,20 @@ export async function buildPayload(
           ].join("|");
 
           const testStatus = mapStatus(result.status || "unknown");
-          const error = result.error
+          const firstError = result.errors?.[0];
+          const error = firstError
             ? {
-                message: maskSecrets(result.error.message || ""),
-                stack: result.error.stack
-                  ? maskSecrets(result.error.stack)
+                message: maskSecrets(firstError.message || ""),
+                stack: firstError.stack
+                  ? maskSecrets(firstError.stack)
                   : undefined,
               }
             : undefined;
+
+          const flattenOutput = (out?: string[] | { type: string; text: string }[]): string | undefined => {
+            if (!out || out.length === 0) return undefined;
+            return maskSecrets(out.map((o) => (typeof o === "string" ? o : o.text || "")).join("\n"));
+          };
 
           tests.push({
             testKey: stableKey,
@@ -87,12 +93,8 @@ export async function buildPayload(
             durationMs: result.duration || 0,
             retryCount: result.retry || 0,
             error,
-            stdout: result.stdout
-              ? maskSecrets(result.stdout.join("\n"))
-              : undefined,
-            stderr: result.stderr
-              ? maskSecrets(result.stderr.join("\n"))
-              : undefined,
+            stdout: flattenOutput(result.stdout),
+            stderr: flattenOutput(result.stderr),
             annotations: [],
             artifacts: [],
           });
